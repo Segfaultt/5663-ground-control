@@ -1,4 +1,7 @@
 # 5663-ground-control
-Team 5663 Ground Control 2017 software
+Team 5663 Ground Control 2017 software repository -
 
-this is the equivilant of the ~/workspace/[project name]/src/
+Upload entire 'src' file named as:
+"5663.version"
+e.g. 5663.1.0
+
