@@ -9,6 +9,7 @@
 #include <Joystick.h>
 #include <GenericHID.h>
 #include <CANTalon.h>
+#include "vision.cpp"
 
 class Robot: public frc::IterativeRobot {
 	frc::XboxController *xbox;
@@ -116,6 +117,10 @@ void TeleopInit() {
 		drive->SetSafetyEnabled(true);
 		Throttle = 0.7;
 		ThrottlePressS = 0; ThrottlePressB = 0;
+
+		//create a thread for vision (in vision.cpp)
+		std::thread visionThread(vision, 200, 255);//thresh = 200, max value = 255
+		visionThread.detach();
 	}
 
 void TeleopPeriodic() {
