@@ -1,0 +1,8 @@
+To do list for software:
+-Finish the masks in GRIP
+-Integrate GRIP code
+-Send processed images to smartdashboard
+-Spin gear
+-Move sliding superstructure (manual and auto)
+-Climber code
+-Auto drive onto hook
