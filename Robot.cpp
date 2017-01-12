@@ -1,4 +1,5 @@
 #include <iostream>
+#include <math.h>
 #include <memory>
 #include <string>
 #include "WPILib.h"
@@ -127,7 +128,7 @@ void TeleopPeriodic() {
 		getControllerValues();
 		updateThrottle();
 		updateControllerValues();
-		drive->TankDrive(-LY*Throttle,-RY*Throttle);
+		drive->TankDrive(-LY*Throttle*abs(Throttle),-RY*Throttle*abs(Throttle));
 	}
 
 void TestPeriodic(){
