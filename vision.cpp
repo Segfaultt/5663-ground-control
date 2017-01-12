@@ -1,10 +1,14 @@
 #include <opencv2/imgproc/imgproc.hpp>
 #include <opencv2/core/core.hpp>
+/* distance = k sqrt(area)
+ * retro reflectors are 2x5 inches
+ * 10-1/4 inches from outer edge to outer edge
+ */
 
-//find the centreline where the pin is
-unsigned int Robot::average_y_coordinate(Mat& matrix)
+//find the centreline where the pin is from a greyscale matrix
+unsigned int Robot::average_x_coordinate(Mat& matrix)
 {
-	unsigned long long cummulative_value = 0, n_of_values = 0;
+	unsigned long cummulative_value = 0, n_of_values = 0;
 
         for(int i = 0; i < matrix.rows; ++i) {
                 const unsigned char* row = matrix.ptr<unsigned char>(i);
@@ -17,6 +21,35 @@ unsigned int Robot::average_y_coordinate(Mat& matrix)
         }
 
         return cummulative_value/n_of_values;
+}
+
+//find how many white pixels there are right or left of midpoint
+int Robot::sum_of_side(Mat& matrix, int midpoint, bool lhs)
+{
+        unsigned long cummulative_value = 0;
+
+        if (lhs) {
+                for(int i = 0; i < matrix.rows; ++i) {
+                        const unsigned char* row = matrix.ptr<unsigned char>(i); 
+                        for(int j = 0; j < midpoint; j++) {
+                                if (row[j] == 255) {
+                                        cummulative_value++;
+                                }
+                        }
+                }
+        } else {
+                
+                for(int i = 0; i < matrix.rows; ++i) {
+                        const unsigned char* row = matrix.ptr<unsigned char>(i); 
+                        for(int j = midpoint; j < matrix.cols; j++) {
+                                if (row[j] == 255) {
+                                        cummulative_value++;
+                                }
+                        }
+                }
+        }
+
+        return cummulative_value;
 }
 
 void Robot::vision(const double thresh, const double max_val)
