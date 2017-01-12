@@ -15,13 +15,19 @@
 class Robot: public frc::IterativeRobot {
 	frc::XboxController *xbox;
 	frc::RobotDrive *drive;
+	frc::LiveWindow* lw = LiveWindow::GetInstance();
+	frc::SendableChooser<std::string> chooser;
 	CANTalon *r1;
 	CANTalon *r2;
 	CANTalon *l1;
 	CANTalon *l2;
-public:
+	const std::string autoNameDefault = "Default";
+	const std::string autoNameCustom = "My Auto";
+	std::string autoSelected;
+
+	public:
 	int A,B,X,Y,back,start,LB,RB,LS,RS,Arrow,ThrottlePressS,ThrottlePressB; double LT,RT,RX,RY,LX,LY,Throttle;
-void RobotInit() {
+	void RobotInit() {
 		chooser.AddDefault(autoNameDefault, autoNameDefault);
 		chooser.AddObject(autoNameCustom, autoNameCustom);
 		frc::SmartDashboard::PutData("Auto Modes", &chooser);
@@ -40,61 +46,63 @@ void RobotInit() {
 		Throttle = 0.7; //Maximum robot speed as a %
 	}
 
-void getControllerValues() {
-    	A = xbox->GetRawButton(1);
-    	B = xbox->GetRawButton(2);
-    	X = xbox->GetRawButton(3);
-    	Y = xbox->GetRawButton(4);
-    	LB = xbox->GetRawButton(5);
-    	RB = xbox->GetRawButton(6);
-    	back = xbox->GetRawButton(7);
-    	start = xbox->GetRawButton(8);
-    	LS = xbox->GetRawButton(9);
-    	RS = xbox->GetRawButton(10);
-    	LX = xbox->GetRawAxis(0);
-    	LY = xbox->GetRawAxis(1);
-    	LT = xbox->GetRawAxis(2);
-    	RT = xbox->GetRawAxis(3);
-    	RX = xbox->GetRawAxis(4);
-    	RY = xbox->GetRawAxis(5);
-    	Arrow = xbox->GetPOV();
-    }
-
-void updateControllerValues() {
-	SmartDashboard::PutNumber("A",A);
-	SmartDashboard::PutNumber("B",B);
-	SmartDashboard::PutNumber("X",X);
-	SmartDashboard::PutNumber("Y",Y);
-	SmartDashboard::PutNumber("Left Bumper",LB);
-	SmartDashboard::PutNumber("Right Bumper",RB);
-	SmartDashboard::PutNumber("Start",start);
-	SmartDashboard::PutNumber("Back",back);
-	SmartDashboard::PutNumber("Right Stick",RS);
-	SmartDashboard::PutNumber("Left Stick",LS);
-	SmartDashboard::PutNumber("Right Stick X",RX);
-	SmartDashboard::PutNumber("Right Stick Y",RY);
-	SmartDashboard::PutNumber("Left Stick X",LX);
-	SmartDashboard::PutNumber("Left Stick Y",LY);
-	SmartDashboard::PutNumber("Right Trigger",RT);
-	SmartDashboard::PutNumber("Left Trigger",LT);
-	SmartDashboard::PutNumber("Arrow Pad",Arrow);
-	SmartDashboard::PutNumber("Throttle",Throttle);
-}
-
-void updateThrottle() {
-	if(back==0){ThrottlePressB = 0;}
-	if(start==0){ThrottlePressS = 0;}
-	if((back==1)&&(Throttle>0)&&(ThrottlePressB==0)&&(ThrottlePressS==0)){
-		Throttle-=0.05;
-		ThrottlePressB=1;
+	void getControllerValues() {
+		A = xbox->GetRawButton(1);
+		B = xbox->GetRawButton(2);
+		X = xbox->GetRawButton(3);
+		Y = xbox->GetRawButton(4);
+		LB = xbox->GetRawButton(5);
+		RB = xbox->GetRawButton(6);
+		back = xbox->GetRawButton(7);
+		start = xbox->GetRawButton(8);
+		LS = xbox->GetRawButton(9);
+		RS = xbox->GetRawButton(10);
+		LX = xbox->GetRawAxis(0);
+		LY = xbox->GetRawAxis(1);
+		LT = xbox->GetRawAxis(2);
+		RT = xbox->GetRawAxis(3);
+		RX = xbox->GetRawAxis(4);
+		RY = xbox->GetRawAxis(5);
+		Arrow = xbox->GetPOV();
 	}
-	if((start==1)&&(Throttle>0)&&(ThrottlePressB==0)&&(ThrottlePressS==0)){
-		Throttle+=0.05;
-		ThrottlePressS=1;
-	}
-}
 
-void AutonomousInit() override {
+	void updateControllerValues() {
+		SmartDashboard::PutNumber("A",A);
+		SmartDashboard::PutNumber("B",B);
+		SmartDashboard::PutNumber("X",X);
+		SmartDashboard::PutNumber("Y",Y);
+		SmartDashboard::PutNumber("Left Bumper",LB);
+		SmartDashboard::PutNumber("Right Bumper",RB);
+		SmartDashboard::PutNumber("Start",start);
+		SmartDashboard::PutNumber("Back",back);
+		SmartDashboard::PutNumber("Right Stick",RS);
+		SmartDashboard::PutNumber("Left Stick",LS);
+		SmartDashboard::PutNumber("Right Stick X",RX);
+		SmartDashboard::PutNumber("Right Stick Y",RY);
+		SmartDashboard::PutNumber("Left Stick X",LX);
+		SmartDashboard::PutNumber("Left Stick Y",LY);
+		SmartDashboard::PutNumber("Right Trigger",RT);
+		SmartDashboard::PutNumber("Left Trigger",LT);
+		SmartDashboard::PutNumber("Arrow Pad",Arrow);
+		SmartDashboard::PutNumber("Throttle",Throttle);
+	}
+
+	void updateThrottle() {
+		if (back==0)
+			ThrottlePressB = 0;
+		if (start==0)
+			ThrottlePressS = 0;
+		if (back == 1 && Throttle > 0 && ThrottlePressB == 0 && ThrottlePressS == 0) {
+			Throttle-=0.05;
+			ThrottlePressB=1;
+		}
+		if (start==1 && Throttle > 0 && ThrottlePressB == 0 && ThrottlePressS == 0) {
+			Throttle+=0.05;
+			ThrottlePressS=1;
+		}
+	}
+
+	void AutonomousInit() override {
 		autoSelected = chooser.GetSelected();
 		//std::string autoSelected = SmartDashboard::GetString("Auto Selector", autoNameDefault);
 		std::cout << "Auto selected: " << autoSelected << std::endl;
@@ -106,7 +114,7 @@ void AutonomousInit() override {
 		}
 	}
 
-void AutonomousPeriodic() {
+	void AutonomousPeriodic() {
 		if (autoSelected == autoNameCustom) {
 			// Custom Auto goes here
 		} else {
@@ -114,7 +122,7 @@ void AutonomousPeriodic() {
 		}
 	}
 
-void TeleopInit() {
+	void TeleopInit() {
 		drive->SetSafetyEnabled(true);
 		Throttle = 0.7;
 		ThrottlePressS = 0; ThrottlePressB = 0;
@@ -124,25 +132,19 @@ void TeleopInit() {
 		visionThread.detach();
 	}
 
-void TeleopPeriodic() {
+	void TeleopPeriodic() {
 		getControllerValues();
 		updateThrottle();
 		updateControllerValues();
 		drive->TankDrive(-LY*Throttle*abs(Throttle),-RY*Throttle*abs(Throttle));
 	}
 
-void TestPeriodic(){
+	void TestPeriodic(){
 	 	drive->SetSafetyEnabled(false);
 		getControllerValues();
 		updateControllerValues();
 	}
 
-private:
-	frc::LiveWindow* lw = LiveWindow::GetInstance();
-	frc::SendableChooser<std::string> chooser;
-	const std::string autoNameDefault = "Default";
-	const std::string autoNameCustom = "My Auto";
-	std::string autoSelected;
 };
 
 START_ROBOT_CLASS(Robot)
