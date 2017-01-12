@@ -1,9 +1,16 @@
 #include <opencv2/imgproc/imgproc.hpp>
 #include <opencv2/core/core.hpp>
+#include <math.h>
 /* distance = k sqrt(area)
  * retro reflectors are 2x5 inches
  * 10-1/4 inches from outer edge to outer edge
  */
+
+//calculate distance from lift in meters assuming you're right on
+double std::find_distance(int area, const int k)
+{
+	return k * sqrt(area);
+}
 
 //find the centreline where the pin is from a greyscale matrix
 unsigned int Robot::average_x_coordinate(Mat& matrix)
@@ -69,4 +76,3 @@ void Robot::vision(const double thresh, const double max_val)
 		cv::threshold(with_thresh, with_thresh, thresh, max_val, THRESH_BINARY);//tested
         }
 }
-
