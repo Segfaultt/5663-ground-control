@@ -117,7 +117,12 @@ std::vector<std::vector<cv::Point> >* GripPipeline::getfilterContoursOutput(){
 	 */
 	//void hslThreshold(Mat *input, double hue[], double sat[], double lum[], Mat *out) {
 	void GripPipeline::hslThreshold(cv::Mat &input, double hue[], double sat[], double lum[], cv::Mat &out) {
-		cv::cvtColor(input, out, cv::COLOR_BGR2HLS);
+		//thanks Himal
+		if (input.channels() > 1)
+			cv::cvtColor(input, out, cv::COLOR_BGR2HLS);
+		else
+			out = input;
+
 		cv::inRange(out, cv::Scalar(hue[0], lum[0], sat[0]), cv::Scalar(hue[1], lum[1], sat[1]), out);
 	}
 
