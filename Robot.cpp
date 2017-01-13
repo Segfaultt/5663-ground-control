@@ -72,6 +72,7 @@ void vision(const double thresh, const double max_val)
 	cs::UsbCamera camera = CameraServer::GetInstance()->StartAutomaticCapture();
 	camera.SetResolution(640, 480);
 	cs::CvSink cvSink = CameraServer::GetInstance()->GetVideo();
+	cs::CvSource processed_video = CameraServer::GetInstance()->PutVideo("Gray", 640, 480);
 
 	cv::Mat image;
 	grip::GripPipeline grip;
@@ -79,10 +80,14 @@ void vision(const double thresh, const double max_val)
 	while(true) {
 		cvSink.GrabFrame(image);
 
-		//put image processing here
+		//image processing
 		grip.process(image);
+
+		//put it in a stream for smartdashboard
+		processed_video.PutFrame(grip.gethslThresholdOutput());
 	}
 }
+
 class Robot: public frc::IterativeRobot {
 	frc::XboxController *xbox;
 	frc::RobotDrive *drive;
