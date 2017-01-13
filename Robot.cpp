@@ -73,12 +73,14 @@ void vision(const double thresh, const double max_val)
 	camera.SetResolution(640, 480);
 	cs::CvSink cvSink = CameraServer::GetInstance()->GetVideo();
 
-	cv::Mat image, processed;
+	cv::Mat image;
+	grip::GripPipeline grip;
 
 	while(true) {
 		cvSink.GrabFrame(image);
 
 		//put image processing here
+		grip.process(image);
 	}
 }
 class Robot: public frc::IterativeRobot {
