@@ -50,13 +50,6 @@ void GripPipeline::process(cv::Mat source0){
 }
 
 /**
- * This method is a generated setter for source0.
- * @param source the Mat to set
- */
-void GripPipeline::setsource0(cv::Mat &source0){
-	source0.copyTo(this->source0);
-}
-/**
  * This method is a generated getter for the output of a Blur.
  * @return Mat output from Blur.
  */
