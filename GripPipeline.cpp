@@ -17,15 +17,24 @@ void GripPipeline::process(cv::Mat source0){
 	//Step Blur0:
 	//input
 	cv::Mat blurInput = source0;
-	BlurType blurType = BlurType::GAUSSIAN;
-	double blurRadius = 1.8018018018018018;  // default Double
+	BlurType blurType = BlurType::MEDIAN;
+	double blurRadius = 4.339622641509436;  // default Double
 	blur(blurInput, blurType, blurRadius, this->blurOutput);
+	//Step CV_erode0:
+	//input
+	cv::Mat cvErodeSrc = blurOutput;
+	cv::Mat cvErodeKernel;
+	cv::Point cvErodeAnchor(-1, -1);
+	double cvErodeIterations = 3.0;  // default Double
+    int cvErodeBordertype = cv::BORDER_CONSTANT;
+	cv::Scalar cvErodeBordervalue(-1);
+	cvErode(cvErodeSrc, cvErodeKernel, cvErodeAnchor, cvErodeIterations, cvErodeBordertype, cvErodeBordervalue, this->cvErodeOutput);
 	//Step HSL_Threshold0:
 	//input
-	cv::Mat hslThresholdInput = blurOutput;
-	double hslThresholdHue[] = {66.36690647482014, 180.0};
-	double hslThresholdSaturation[] = {43.57014388489208, 196.2542662116041};
-	double hslThresholdLuminance[] = {245.8273381294964, 255.0};
+	cv::Mat hslThresholdInput = cvErodeOutput;
+	double hslThresholdHue[] = {35.611510791366904, 132.38907849829351};
+	double hslThresholdSaturation[] = {137.58992805755395, 255.0};
+	double hslThresholdLuminance[] = {16.052158273381295, 141.86006825938568};
 	hslThreshold(hslThresholdInput, hslThresholdHue, hslThresholdSaturation, hslThresholdLuminance, this->hslThresholdOutput);
 	//Step Find_Contours0:
 	//input
@@ -35,13 +44,13 @@ void GripPipeline::process(cv::Mat source0){
 	//Step Filter_Contours0:
 	//input
 	std::vector<std::vector<cv::Point> > filterContoursContours = findContoursOutput;
-	double filterContoursMinArea = 1000.0;  // default Double
-	double filterContoursMinPerimeter = 150.0;  // default Double
+	double filterContoursMinArea = 300.0;  // default Double
+	double filterContoursMinPerimeter = 10.0;  // default Double
 	double filterContoursMinWidth = 20.0;  // default Double
 	double filterContoursMaxWidth = 1000.0;  // default Double
-	double filterContoursMinHeight = 0.0;  // default Double
+	double filterContoursMinHeight = 20.0;  // default Double
 	double filterContoursMaxHeight = 1000.0;  // default Double
-	double filterContoursSolidity[] = {84.53237410071942, 100.0};
+	double filterContoursSolidity[] = {60.0, 100.0};
 	double filterContoursMaxVertices = 1000000.0;  // default Double
 	double filterContoursMinVertices = 0.0;  // default Double
 	double filterContoursMinRatio = 0.0;  // default Double
@@ -50,11 +59,22 @@ void GripPipeline::process(cv::Mat source0){
 }
 
 /**
+ * This method is a generated setter for source0.
+ * @param source the Mat to set
+ */
+/**
  * This method is a generated getter for the output of a Blur.
  * @return Mat output from Blur.
  */
 cv::Mat* GripPipeline::getblurOutput(){
 	return &(this->blurOutput);
+}
+/**
+ * This method is a generated getter for the output of a CV_erode.
+ * @return Mat output from CV_erode.
+ */
+cv::Mat* GripPipeline::getcvErodeOutput(){
+	return &(this->cvErodeOutput);
 }
 /**
  * This method is a generated getter for the output of a HSL_Threshold.
@@ -107,6 +127,20 @@ std::vector<std::vector<cv::Point> >* GripPipeline::getfilterContoursOutput(){
         }
 	}
 	/**
+	 * Expands area of lower value in an image.
+	 * @param src the Image to erode.
+	 * @param kernel the kernel for erosion.
+	 * @param anchor the center of the kernel.
+	 * @param iterations the number of times to perform the erosion.
+	 * @param borderType pixel extrapolation method.
+	 * @param borderValue value to be used for a constant border.
+	 * @param dst Output Image.
+	 */
+	void GripPipeline::cvErode(cv::Mat &src, cv::Mat &kernel, cv::Point &anchor, double iterations, int borderType, cv::Scalar &borderValue, cv::Mat &dst) {
+		cv::erode(src, dst, kernel, anchor, (int)iterations, borderType, borderValue);
+	}
+
+	/**
 	 * Segment an image based on hue, saturation, and luminance ranges.
 	 *
 	 * @param input The image on which to perform the HSL threshold.
@@ -117,12 +151,7 @@ std::vector<std::vector<cv::Point> >* GripPipeline::getfilterContoursOutput(){
 	 */
 	//void hslThreshold(Mat *input, double hue[], double sat[], double lum[], Mat *out) {
 	void GripPipeline::hslThreshold(cv::Mat &input, double hue[], double sat[], double lum[], cv::Mat &out) {
-		//thanks Himal
-		if (input.channels() > 1)
-			cv::cvtColor(input, out, cv::COLOR_BGR2HLS);
-		else
-			out = input;
-
+		cv::cvtColor(input, out, cv::COLOR_BGR2HLS);
 		cv::inRange(out, cv::Scalar(hue[0], lum[0], sat[0]), cv::Scalar(hue[1], lum[1], sat[1]), out);
 	}
 
