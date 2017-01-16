@@ -42,7 +42,7 @@ public:
 	grip::GripPipeline *grip;
 	cvSink.GrabFrame(image);
 	outputStream = CameraServer::GetInstance()->PutVideo("Back Camera: ", 640, 480);
-	grip.process(image);
+	grip->process(image);
 
 	outputStream = CameraServer::GetInstance()->PutVideo("Processed Image: ", 640, 480);
 	outputStream = CameraServer::GetInstance()->PutVideo("Front Camera: ", 640, 480);
