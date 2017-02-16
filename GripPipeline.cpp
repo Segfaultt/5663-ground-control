@@ -18,23 +18,14 @@ void GripPipeline::process(cv::Mat source0){
 	//input
 	cv::Mat blurInput = source0;
 	BlurType blurType = BlurType::MEDIAN;
-	double blurRadius = 4.339622641509436;  // default Double
+	double blurRadius = 1.9717831038585758;  // default Double
 	blur(blurInput, blurType, blurRadius, this->blurOutput);
-	//Step CV_erode0:
-	//input
-	cv::Mat cvErodeSrc = blurOutput;
-	cv::Mat cvErodeKernel;
-	cv::Point cvErodeAnchor(-1, -1);
-	double cvErodeIterations = 3.0;  // default Double
-    int cvErodeBordertype = cv::BORDER_CONSTANT;
-	cv::Scalar cvErodeBordervalue(-1);
-	cvErode(cvErodeSrc, cvErodeKernel, cvErodeAnchor, cvErodeIterations, cvErodeBordertype, cvErodeBordervalue, this->cvErodeOutput);
 	//Step HSL_Threshold0:
 	//input
-	cv::Mat hslThresholdInput = cvErodeOutput;
-	double hslThresholdHue[] = {35.611510791366904, 132.38907849829351};
-	double hslThresholdSaturation[] = {137.58992805755395, 255.0};
-	double hslThresholdLuminance[] = {16.052158273381295, 141.86006825938568};
+	cv::Mat hslThresholdInput = blurOutput;
+	double hslThresholdHue[] = {0.0, 180.0};
+	double hslThresholdSaturation[] = {20.90245070126982, 86.14105162940099};
+	double hslThresholdLuminance[] = {238.48920863309354, 255.0};
 	hslThreshold(hslThresholdInput, hslThresholdHue, hslThresholdSaturation, hslThresholdLuminance, this->hslThresholdOutput);
 	//Step Find_Contours0:
 	//input
@@ -62,19 +53,15 @@ void GripPipeline::process(cv::Mat source0){
  * This method is a generated setter for source0.
  * @param source the Mat to set
  */
+//void GripPipeline::setsource0(cv::Mat &source0){
+//	source0.copyTo(this->source0);
+//}
 /**
  * This method is a generated getter for the output of a Blur.
  * @return Mat output from Blur.
  */
 cv::Mat* GripPipeline::getblurOutput(){
 	return &(this->blurOutput);
-}
-/**
- * This method is a generated getter for the output of a CV_erode.
- * @return Mat output from CV_erode.
- */
-cv::Mat* GripPipeline::getcvErodeOutput(){
-	return &(this->cvErodeOutput);
 }
 /**
  * This method is a generated getter for the output of a HSL_Threshold.
@@ -126,20 +113,6 @@ std::vector<std::vector<cv::Point> >* GripPipeline::getfilterContoursOutput(){
 				break;
         }
 	}
-	/**
-	 * Expands area of lower value in an image.
-	 * @param src the Image to erode.
-	 * @param kernel the kernel for erosion.
-	 * @param anchor the center of the kernel.
-	 * @param iterations the number of times to perform the erosion.
-	 * @param borderType pixel extrapolation method.
-	 * @param borderValue value to be used for a constant border.
-	 * @param dst Output Image.
-	 */
-	void GripPipeline::cvErode(cv::Mat &src, cv::Mat &kernel, cv::Point &anchor, double iterations, int borderType, cv::Scalar &borderValue, cv::Mat &dst) {
-		cv::erode(src, dst, kernel, anchor, (int)iterations, borderType, borderValue);
-	}
-
 	/**
 	 * Segment an image based on hue, saturation, and luminance ranges.
 	 *

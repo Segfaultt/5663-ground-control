@@ -1,4 +1,5 @@
 #pragma once
+#include "vision\VisionPipeline.h"
 #include <opencv2/objdetect/objdetect.hpp>
 #include <opencv2/highgui/highgui.hpp>
 #include <opencv2/imgproc/imgproc.hpp>
@@ -29,13 +30,11 @@ enum BlurType {
 */
 class GripPipeline {
 	private:
-		cv::Mat* blurOutput;
-		cv::Mat* cvErodeOutput;
-		cv::Mat* hslThresholdOutput;
+		cv::Mat blurOutput;
+		cv::Mat hslThresholdOutput;
 		std::vector<std::vector<cv::Point> > findContoursOutput;
 		std::vector<std::vector<cv::Point> > filterContoursOutput;
 		void blur(cv::Mat &, BlurType &, double , cv::Mat &);
-		void cvErode(cv::Mat &, cv::Mat &, cv::Point &, double , int , cv::Scalar &, cv::Mat &);
 		void hslThreshold(cv::Mat &, double [], double [], double [], cv::Mat &);
 		void findContours(cv::Mat &, bool , std::vector<std::vector<cv::Point> > &);
 		void filterContours(std::vector<std::vector<cv::Point> > &, double , double , double , double , double , double , double [], double , double , double , double , std::vector<std::vector<cv::Point> > &);
@@ -44,7 +43,6 @@ class GripPipeline {
 		GripPipeline();
 		void process(cv::Mat source0);
 		cv::Mat* getblurOutput();
-		cv::Mat* getcvErodeOutput();
 		cv::Mat* gethslThresholdOutput();
 		std::vector<std::vector<cv::Point> >* getfindContoursOutput();
 		std::vector<std::vector<cv::Point> >* getfilterContoursOutput();
