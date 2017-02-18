@@ -6,22 +6,15 @@
 #include "WPILib.h"
 #include <DigitalInput.h>
 #include <IterativeRobot.h>
-#include <LiveWindow/LiveWindow.h>
 #include <SmartDashboard/SendableChooser.h>
 #include <SmartDashboard/SmartDashboard.h>
 #include <Joystick.h>
 #include <GenericHID.h>
 #include <CANTalon.h>
 #include <CameraServer.h>
-#include <opencv2/imgproc/imgproc.hpp>
-#include <opencv2/core/core.hpp>\
-
-#include <opencv2/core/types.hpp>
-#include <thread>
 #include <Commands/Command.h>
 #include <Commands/Scheduler.h>
 #include <I2C.h>
-#include "C:/Users/jakel/workspace/5663.0.0/src/AHRS.h"
 #include <time.h>
 using namespace std;
 class Robot: public frc::IterativeRobot {
@@ -38,10 +31,12 @@ class Robot: public frc::IterativeRobot {
 			1);
 	SendableChooser<int*> *AutoChooser = new SendableChooser<int*>,
 			*ControllerMode = new SendableChooser<int*>;
+
 public:
 	std::shared_ptr<NetworkTable> table;
 	int LS, RS, gearToggle, servoAngle, Auto, Control, defaultGear, fastGear,
-			slowGear, angle, mult; string auto_state;
+			slowGear, angle, mult, state;
+	string auto_state;
 	double LT, RT, RX, RY, LX, LY, speedL, speedR, rate, dist, offset, accel,
 			velocity, center;bool LB, RB, back, start, A, B, X, Y, up, down,
 			left, right, IR, IR2;
@@ -51,17 +46,17 @@ public:
 		NetworkTable::SetIPAddress("10.56.63.2");
 		table = NetworkTable::GetTable("LiftTracker");
 
-		AutoChooser->AddDefault("Do nothing", (int*) 1);
-		AutoChooser->AddObject("Drive forward 1 meter", (int*) 2);
-		AutoChooser->AddObject("Drive forward 4 meters", (int*) 3);
+		AutoChooser->AddDefault("Nothing", (int*) 0);
+		AutoChooser->AddObject("Forward", (int*) 1);
+		AutoChooser->AddObject("Left", (int*) 2);
+		AutoChooser->AddObject("Right", (int*) 3);
 		SmartDashboard::PutData("Choose Mode", AutoChooser);
 
 		ControllerMode->AddDefault("One Controller", (int*) 1);
 		ControllerMode->AddObject("Two Controller", (int*) 2);
 		SmartDashboard::PutData("Control Mode", ControllerMode);
 
-		SmartDashboard::PutBoolean("Squared Input?", true);
-		SmartDashboard::PutNumber("Dead Zone", 0.05);
+		SmartDashboard::PutBoolean("Auto Align", true);
 
 		left_motors->Set(0);
 		right_motors->Set(0);
@@ -143,10 +138,16 @@ public:
 			down = false;
 			break;
 		}
-		speedR = (-RT * 0.5) + RY;
+		if (Control == 2)
+			speedR = (RT * 0.5) + RY;
+		else
+			speedR = RY;
 		if (speedR > 1)
 			speedR = 1;
-		speedL = (-LT * 0.5) + LY;
+		if (Control == 2)
+			speedL = (LT * 0.5) + LY;
+		else
+			speedL = LY;
 		if (speedL > 1)
 			speedL = 1;
 	}
@@ -250,12 +251,10 @@ public:
 //}
 
 	void tankDrive(double l, double r) {
-		if (SmartDashboard::GetBoolean("Squared Input?", true)) {
-			l *= abs(l);
-			r *= abs(r);
-		}
-		left_motors->Set(l);
-		right_motors->Set(-r);
+		l *= abs(l);
+		r *= abs(r);
+		left_motors->Set(-l);
+		right_motors->Set(r);
 	}
 
 	void moveClimber(bool u) {
@@ -273,10 +272,6 @@ public:
 			loader->Set(r);
 	}
 
-	void turnDrive(int a) {
-
-	}
-
 	void sendLED(char send) {
 		//Wire->Write(4,send);
 	}
@@ -290,31 +285,52 @@ public:
 		getValues();
 		updateDash();
 		mult = 1;
+		time = clock();
+		state = 0;
 	}
 
 	void AutonomousPeriodic() {
 		getValues();
 		updateDash();
-		if ((dist > 100) && (center > 250 && center < 390)) {
-			auto_state = "straight";
-			tankDrive(-0.5, -0.53);
-		} else if ((dist < 100) && (center > 250 && center < 390)) {
-			auto_state = "stop";
-			tankDrive(0, 0);
-		}
-		else if(dist == 1234567890){
-			auto_state = "Error";
-			tankDrive(mult*0.4,mult*-0.4);
-		}
-		else if (center > 390) {
-			auto_state = "Right";
-			tankDrive(-0.35, 0.35);
-			mult = -1;
-		} else if (center < 250) {
-			auto_state = "Left";
-			tankDrive(0.35, -0.35);
-			mult = 1;
-		}
+		if (Auto == 1) {
+			if ((dist >= 40) && (center > 240 && center < 400)) {
+				auto_state = "forward";
+				tankDrive((dist * 0.006), (dist * 0.006));
+			}
+			if ((dist < 40) && (center > 240 && center < 400)) {
+				auto_state = "stop";
+				tankDrive(0, 0);
+				state = 1;
+				time = clock();
+			}
+			if (center > 400) {
+				auto_state = "Right";
+				tankDrive(0.35, -0.35);
+				mult = -1;
+			}
+			if (center < 240) {
+				auto_state = "Left";
+				tankDrive(-0.35, 0.35);
+				mult = 1;
+			}
+			if (dist == 1234567890) {
+				if (mult == -1)
+					auto_state = "Error - Going Right";
+				if (mult == 1)
+					auto_state = "Error - Going Left";
+				tankDrive(-mult * 0.4, mult * 0.4);
+			}
+			if (state == 1) {
+				time += clock();
+				if ((((float) time) / CLOCKS_PER_SEC) < 1) {
+					tankDrive(0.4, 0.43);
+				} else {
+					tankDrive(0, 0);
+					auto_state = "Gear on peg, please restart";
+				}
+			}
+		} else
+			state = 0;
 	}
 
 	void TeleopInit() {
@@ -327,18 +343,31 @@ public:
 	void TeleopPeriodic() {
 		getValues();
 		tankDrive(speedL, speedR);
-		changeGear(RS);
+		changeGear(RS || Y);
 		if (Control == 1) { //One controller
-			moveServo(IR, IR2);
-			moveClimber(A || up);
-			moveLoader(left, right);
+			moveServo(LB, RB);
+			moveClimber(A || LS);
+			if (LT != 0 || RT != 0)
+				moveLoader(LT, RT);
+			else if (SmartDashboard::GetBoolean("Auto Align", true)) {
+				if (center > 360)
+					moveLoader(0, 1);
+				if (center < 280)
+					moveLoader(1, 0);
+			}
 		}
 		if (Control == 2) { //Two controllers
-			moveServo((IR || xbox2->GetBumper(xbox2->kLeftHand)),
-					(IR2 || xbox2->GetBumper(xbox2->kRightHand)));
-			moveClimber(xbox2->GetAButton() || up);
-			moveLoader(xbox2->GetTriggerAxis(xbox2->kLeftHand),
-					xbox2->GetTriggerAxis(xbox2->kRightHand));
+			moveServo(xbox2->GetBumper(xbox2->kLeftHand),
+					xbox2->GetBumper(xbox2->kRightHand));
+			moveClimber(xbox2->GetAButton() || xbox2->GetPOV() == 0 || xbox2->GetPOV() == 315 || xbox2->GetPOV() == 45);
+			if(xbox2->GetTriggerAxis(xbox2->kLeftHand) != 0 || xbox2->GetTriggerAxis(xbox2->kRightHand) != 0)
+				moveLoader(xbox2->GetTriggerAxis(xbox2->kLeftHand), xbox2->GetTriggerAxis(xbox2->kRightHand));
+			else if (SmartDashboard::GetBoolean("Auto Align", true)) {
+				if (center > 360)
+					moveLoader(0, 1);
+				if (center < 280)
+					moveLoader(1, 0);
+			}
 		}
 		updateDash();
 	}
