@@ -19,6 +19,7 @@
 using namespace std;
 class Robot: public frc::IterativeRobot {
 	clock_t time;
+	frc::PowerDistributionPanel *pdp = new PowerDistributionPanel(0);
 	XboxController *xbox = new XboxController(0), *xbox2 = new XboxController(
 			1);
 	Talon *left_motors = new Talon(0), *right_motors = new Talon(1), *climber =
@@ -52,8 +53,8 @@ public:
 		AutoChooser->AddObject("Right", (int*) 3);
 		SmartDashboard::PutData("Choose Mode", AutoChooser);
 
-		ControllerMode->AddDefault("One Controller", (int*) 1);
-		ControllerMode->AddObject("Two Controller", (int*) 2);
+		ControllerMode->AddDefault("Two Controller", (int*) 2);
+		ControllerMode->AddObject("One Controller", (int*) 1);
 		SmartDashboard::PutData("Control Mode", ControllerMode);
 
 		SmartDashboard::PutBoolean("Auto Align", true);
@@ -62,8 +63,8 @@ public:
 		right_motors->Set(0);
 		climber->Set(0);
 		loader->Set(0);
-		fastGear = rightGear->kReverse;
-		slowGear = rightGear->kForward;
+		slowGear = rightGear->kReverse;
+		fastGear = rightGear->kForward;
 
 		getValues();
 		updateDash();
@@ -139,13 +140,13 @@ public:
 			break;
 		}
 		if (Control == 2)
-			speedR = (RT * 0.5) + RY;
+			speedR = (-RT * 0.5) + RY;
 		else
 			speedR = RY;
 		if (speedR > 1)
 			speedR = 1;
 		if (Control == 2)
-			speedL = (LT * 0.5) + LY;
+			speedL = (-LT * 0.5) + LY;
 		else
 			speedL = LY;
 		if (speedL > 1)
@@ -153,6 +154,7 @@ public:
 	}
 
 	void updateDash() { //Put new controller values to the dashboard
+		SmartDashboard::PutNumber("Amp", pdp->GetTotalCurrent());
 		SmartDashboard::PutBoolean("A", A);
 		SmartDashboard::PutBoolean("B", B);
 		SmartDashboard::PutBoolean("X", X);
@@ -272,10 +274,6 @@ public:
 			loader->Set(r);
 	}
 
-	void sendLED(char send) {
-		//Wire->Write(4,send);
-	}
-
 	void AutonomousInit() override {
 		c->SetClosedLoopControl(false);
 		setGear(slowGear);
@@ -292,25 +290,26 @@ public:
 	void AutonomousPeriodic() {
 		getValues();
 		updateDash();
-		if (Auto == 1) {
-			if ((dist >= 40) && (center > 240 && center < 400)) {
+		SmartDashboard::PutNumber("state:",state);
+		if (state == 0) {
+			if ((dist > 60) && (center > 280 && center < 360)) {
 				auto_state = "forward";
-				tankDrive((dist * 0.006), (dist * 0.006));
+				tankDrive(0.5, 0.53);
 			}
-			if ((dist < 40) && (center > 240 && center < 400)) {
+			if ((dist < 60) && (center > 280 && center < 360)) {
 				auto_state = "stop";
 				tankDrive(0, 0);
 				state = 1;
 				time = clock();
 			}
-			if (center > 400) {
+			if (center > 360) {
 				auto_state = "Right";
-				tankDrive(0.35, -0.35);
+				tankDrive(0.3, -0.3);
 				mult = -1;
 			}
-			if (center < 240) {
+			if (center < 280) {
 				auto_state = "Left";
-				tankDrive(-0.35, 0.35);
+				tankDrive(-0.3, 0.3);
 				mult = 1;
 			}
 			if (dist == 1234567890) {
@@ -318,19 +317,55 @@ public:
 					auto_state = "Error - Going Right";
 				if (mult == 1)
 					auto_state = "Error - Going Left";
-				tankDrive(-mult * 0.4, mult * 0.4);
+				tankDrive(mult * 0.5, -mult * 0.5);
 			}
-			if (state == 1) {
-				time += clock();
-				if ((((float) time) / CLOCKS_PER_SEC) < 1) {
-					tankDrive(0.4, 0.43);
-				} else {
-					tankDrive(0, 0);
-					auto_state = "Gear on peg, please restart";
-				}
+		}
+		if (state == 1) {
+			if (center > 360) {
+				auto_state = "Right";
+				tankDrive(0.3, -0.3);
+				mult = -1;
 			}
-		} else
-			state = 0;
+			if (center < 280) {
+				auto_state = "Left";
+				tankDrive(-0.3, 0.3);
+				mult = 1;
+			}
+			if (center == 1234567890) {
+				state = 2;
+				tankDrive(0,0);
+			}
+			if (center < 360 && center > 280) {
+				state = 2;
+				tankDrive(0,0);
+			}
+		}
+		if (state == 2) {
+			tankDrive(0, 0);
+			if (center == 1234567890) {
+				loader->Set(0);
+				state = 2;
+			} else if (center > 330)
+				moveLoader(0, 0.6);
+			else if (center < 310)
+				moveLoader(0.6, 0);
+			else {
+				loader->Set(0);
+				state = 3; time = clock();
+			}
+		}
+		if (state == 3) {
+			if (pdp->GetTotalCurrent() < 4.2) {
+			if (((((float) (clock() - time))) / CLOCKS_PER_SEC) < 1.5) {
+				tankDrive(0.35, 0.38);
+			} else {
+				tankDrive(0, 0);
+				auto_state = "Gear on peg";
+				state = -1;
+				time = clock();
+			}
+		} else tankDrive(0,0);
+		}
 	}
 
 	void TeleopInit() {
@@ -342,32 +377,26 @@ public:
 
 	void TeleopPeriodic() {
 		getValues();
-		tankDrive(speedL, speedR);
-		changeGear(RS || Y);
+		tankDrive(-speedL, -speedR);
+		changeGear(RB || Y);
 		if (Control == 1) { //One controller
-			moveServo(LB, RB);
+			moveServo(left,right);
 			moveClimber(A || LS);
-			if (LT != 0 || RT != 0)
-				moveLoader(LT, RT);
-			else if (SmartDashboard::GetBoolean("Auto Align", true)) {
-				if (center > 360)
+			if (LT != 0 || RT != 0) moveLoader(LT, RT);
+			else if (SmartDashboard::GetBoolean("Auto Align", true) && dist > 40) {
+				if (center > 360 && center != 1234567890)
 					moveLoader(0, 1);
-				if (center < 280)
+				else if (center < 280)
 					moveLoader(1, 0);
-			}
+				else
+					loader->Set(0);
+			} else
+				loader->Set(0);
 		}
 		if (Control == 2) { //Two controllers
-			moveServo(xbox2->GetBumper(xbox2->kLeftHand),
-					xbox2->GetBumper(xbox2->kRightHand));
-			moveClimber(xbox2->GetAButton() || xbox2->GetPOV() == 0 || xbox2->GetPOV() == 315 || xbox2->GetPOV() == 45);
-			if(xbox2->GetTriggerAxis(xbox2->kLeftHand) != 0 || xbox2->GetTriggerAxis(xbox2->kRightHand) != 0)
-				moveLoader(xbox2->GetTriggerAxis(xbox2->kLeftHand), xbox2->GetTriggerAxis(xbox2->kRightHand));
-			else if (SmartDashboard::GetBoolean("Auto Align", true)) {
-				if (center > 360)
-					moveLoader(0, 1);
-				if (center < 280)
-					moveLoader(1, 0);
-			}
+			moveServo(xbox2->GetBumper(xbox2->kLeftHand), xbox2->GetBumper(xbox2->kRightHand));
+			moveClimber( xbox2->GetAButton() || xbox2->GetPOV() == 0 || xbox2->GetPOV() == 315 || xbox2->GetPOV() == 45);
+			moveLoader(xbox2->GetTriggerAxis(xbox2->kLeftHand), xbox2->GetTriggerAxis(xbox2->kRightHand));
 		}
 		updateDash();
 	}
