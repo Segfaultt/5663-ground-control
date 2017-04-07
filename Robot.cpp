@@ -23,7 +23,8 @@ class Robot: public frc::IterativeRobot {
 	XboxController *xbox = new XboxController(0), *xbox2 = new XboxController(1);
 	Talon *left_motors = new Talon(0), *right_motors = new Talon(1), *climber = new Talon(2), *loader = new Talon(3),
 			*gear_motor = new Talon(4);
-	DoubleSolenoid *rightGear = new DoubleSolenoid(1, 0, 1), *leftGear = new DoubleSolenoid(1, 2, 3);
+	DoubleSolenoid *rightGear = new DoubleSolenoid(1, 0, 1),
+			*eject = new DoubleSolenoid(1, 2, 3);
 	Compressor *c = new Compressor(1);
 	DigitalInput *IRsensor = new DigitalInput(0), *IRsensor2 = new DigitalInput(1);
 	frc::DigitalOutput *one = new DigitalOutput(2), *two = new DigitalOutput(3), *three = new DigitalOutput(4);
@@ -32,28 +33,26 @@ class Robot: public frc::IterativeRobot {
 
 public:
 	std::shared_ptr<NetworkTable> table;
-	int LS, RS, gearToggle, Auto, Control, fastGear,
-	slowGear, mult, state;
-	double LT, RT, RX, RY, LX, LY, speedL, speedR, rate, dist, center; bool LB, RB, back, start, A, B, X, Y, up, down,
-	left, right, IR, IR2;
+	int LS, RS, gearToggle, ejectToggle = 0, Auto, Control, fastGear,
+			slowGear, mult, state;
+	double LT, RT, RX, RY, LX, LY, speedL, speedR, rate, dist, center, throttle; bool LB, RB, back, start, A, B, X, Y, up, down,
+	left, right;
 
 	void RobotInit() {
 		NetworkTable::SetTeam(5663);
 		NetworkTable::SetIPAddress("10.56.63.2");
 		table = NetworkTable::GetTable("LiftTracker");
-
+		CameraServer::GetInstance()->StartAutomaticCapture();
 		AutoChooser->AddObject("Reach Base Line", (int*) 0);
 		AutoChooser->AddDefault("Forward", (int*) 1);
-		AutoChooser->AddObject("Left", (int*) 2);
-		AutoChooser->AddObject("Right", (int*) 3);
+		AutoChooser->AddObject("Left Peg", (int*) 2);
+		AutoChooser->AddObject("Do Nothing", (int*) 4);
 		AutoChooser->AddObject("Do Nothing", (int*) 4);
 		SmartDashboard::PutData("Choose Mode", AutoChooser);
 
 		ControllerMode->AddDefault("Two Controller", (int*) 2);
 		ControllerMode->AddObject("One Controller", (int*) 1);
 		SmartDashboard::PutData("Control Mode", ControllerMode);
-
-		SmartDashboard::PutBoolean("Auto IR sensors?", false);
 
 		left_motors->Set(0);
 		right_motors->Set(0);
@@ -62,7 +61,7 @@ public:
 		gear_motor->Set(0);
 		slowGear = rightGear->kReverse;
 		fastGear = rightGear->kForward;
-
+		eject->Set(eject->kReverse);
 		getValues();
 		updateDash();
 	}
@@ -73,8 +72,6 @@ public:
 		Auto = (int) AutoChooser->GetSelected();
 		Control = (int) ControllerMode->GetSelected();
 		double zone = 0.06;
-		IR = !IRsensor->Get();
-		IR2 = !IRsensor2->Get();
 		A = xbox->GetRawButton(1);
 		B = xbox->GetRawButton(2);
 		X = xbox->GetRawButton(3);
@@ -99,7 +96,7 @@ public:
 		RY = xbox->GetRawAxis(5);
 		if (RY > -zone && RY < zone)
 			RY = 0;
-		switch (xbox->GetPOV()) {
+		switch (xbox2->GetPOV()) {
 		case 0:
 			up = true;
 			break;
@@ -150,7 +147,6 @@ public:
 	}
 
 	void updateDash() { //Put new controller values to the dashboard
-		SmartDashboard::PutNumber("arrows 2", xbox2->GetPOV());
 		SmartDashboard::PutNumber("Amp", pdp->GetTotalCurrent());
 		SmartDashboard::PutBoolean("A", A);
 		SmartDashboard::PutBoolean("B", B);
@@ -168,8 +164,6 @@ public:
 		SmartDashboard::PutNumber("Right Speed", speedR);
 		SmartDashboard::PutNumber("Left Trigger", LT);
 		SmartDashboard::PutNumber("Right Trigger", RT);
-		SmartDashboard::PutBoolean("IR2", IR2);
-		SmartDashboard::PutBoolean("IR1", IR);
 		SmartDashboard::PutNumber("distance", dist);
 		SmartDashboard::PutNumber("center", center);
 		if (rightGear->Get() == slowGear) {
@@ -180,33 +174,20 @@ public:
 			SmartDashboard::PutString(" ", "FAST");
 		}
 		if(290 < center && center < 350) {
-			SmartDashboard::PutBoolean("Loader Is Aligned?", true);
-		} else
-			SmartDashboard::PutBoolean("Loader is Aligned?", false);
+			SmartDashboard::PutString("Loader Is Aligned?", "In center");
+		} else if(center < 290){
+			SmartDashboard::PutString("Loader Is Aligned?", "Too far left");
+		} else {
+			SmartDashboard::PutString("Loader Is Aligned?", "Too far right");
+		}
 	}
 
-	void sendLED(bool L, bool E, bool D) {
-		one->Set(L); two->Set(E); three->Set(D);
-	}
-	/*
-	 * Codes:
-	 * 0,0,0 = off
-	 * 1,1,1 = rocket mode
-	 * 1,1,0 = launch rocket
-	 * 1,0,0 = red
-	 * 0,1,0 = green
-	 * 0,0,1 = blue
-	 * 0,1,1 = yellow
-	 *
-	 */
 	void setGear(int gear) {
 		if (gear == rightGear->kForward) {
 			rightGear->Set(rightGear->kForward);
-			leftGear->Set(leftGear->kForward);
 		}
 		if (gear == rightGear->kReverse) {
 			rightGear->Set(rightGear->kReverse);
-			leftGear->Set(leftGear->kReverse);
 		}
 	}
 
@@ -225,6 +206,21 @@ public:
 		}
 	}
 
+	void changeEject(bool i) {
+		if (i && ejectToggle == 1) {
+			if (eject->Get() == eject->kForward) {
+				eject->Set(eject->kReverse);
+				ejectToggle = 0;
+			} else {
+				eject->Set(eject->kForward);
+				ejectToggle = 0;
+			}
+		}
+		if (!i) {
+			ejectToggle = 1;
+		}
+	}
+
 	void moveGear(bool min, bool add) {
 		if (add)
 			gear_motor->Set(0.6);
@@ -235,22 +231,25 @@ public:
 	}
 
 	void tankDrive(double l, double r) {
+		if(pdp->GetVoltage() < 9.5) {
+			throttle = (pdp->GetVoltage() / 10) - 0.15;
+		}
+		else if(pdp->GetVoltage() < 6) {
+			throttle = 0;
+		} else {
+			throttle = 1;
+		}
 		l *= abs(l);
 		r *= abs(r);
-		left_motors->Set(-l);
-		right_motors->Set(r);
+		left_motors->Set(-l*throttle);
+		right_motors->Set(r*throttle);
 	}
 
-	void moveClimber(bool u, bool us) {
+	void moveClimber(bool u) {
 		if (u) {
 			rate = 1;
 			SmartDashboard::PutBoolean("Climbing:", true);
-		}
-		else if (us) {
-			rate = 0.4;
-			SmartDashboard::PutBoolean("Climbing:", true);
-		}
-		else {
+		} else {
 			rate = 0;
 			SmartDashboard::PutBoolean("Climbing:", false);
 		}
@@ -275,12 +274,14 @@ public:
 	bool alignLoader(int lower, int upper, double speed) {
 		if (center > upper && center != 1234567890) {
 			SmartDashboard::PutString("Auto State", "Aligning Loader - Moving Right");
-			moveLoader(0, speed);
+			moveLoader(speed, 0);
 			return false;
 		}
 		else if (center < lower) {
 			SmartDashboard::PutString("Auto State", "Aligning Loader - Moving Left");
-			moveLoader(speed, 0);
+			moveLoader(0, speed);
+			return false;
+		} else if (center == 1234567890) {
 			return false;
 		}
 		else {
@@ -293,14 +294,14 @@ public:
 	bool alignRobot(int lower, int upper, int distance) {
 		if (center > upper && center != 1234567890) {
 			SmartDashboard::PutString("Auto State", "Aligning - Turning Right");
-			tankDrive(0.3, -0.3);
-			mult = -1;
+			tankDrive(0.35, -0.35);
+			mult = 1;
 			return false;
 		}
 		else if (center < lower) {
 			SmartDashboard::PutString("Auto State", "Aligning - Turning Left");
-			tankDrive(-0.3, 0.3);
-			mult = 1;
+			tankDrive(-0.35, 0.35);
+			mult = -1;
 			return false;
 		}
 		else if (center == 1234567890) {
@@ -308,12 +309,12 @@ public:
 				SmartDashboard::PutString("Auto State", "Lost Target - Turning Left");
 			if (mult == 1)
 				SmartDashboard::PutString("Auto State", "Lost Target - Turning Right");
-			tankDrive(mult * 0.5, -mult * 0.5);
+			tankDrive(mult * 0.4, -mult * 0.4);
 			return false;
 		}
 		else if ((center > lower && center < upper) && dist > distance){
 			SmartDashboard::PutString("Auto State", "In Center - Driving Forward");
-			tankDrive(0.5, 0.53);
+			tankDrive(0.507, 0.5);
 			return false;
 		}
 		else {
@@ -329,6 +330,8 @@ public:
 		tankDrive(0, 0);
 		climber->Set(0);
 		loader->Set(0);
+		gear_motor->Set(0);
+		eject->Set(eject->kReverse);
 		getValues();
 		updateDash();
 		mult = 1;
@@ -339,12 +342,14 @@ public:
 	void AutonomousPeriodic() {
 		getValues();
 		updateDash();
+		SmartDashboard::PutNumber("Auto", Auto);
 		SmartDashboard::PutNumber("state:",state);
-		std::cout << state << endl; // need to test
+		std::cout << state << endl;
+		SmartDashboard::PutNumber("timer", ((((float) (clock() - t))) / CLOCKS_PER_SEC));
 		//#############
 		if (Auto == 0) { // baseline
 			if(state == 0) {
-				if(time(5)){
+				if(time(4)){
 					SmartDashboard::PutString("Auto State", "Driving Forward");
 					tankDrive(0.5,0.5);
 				} else {
@@ -356,51 +361,37 @@ public:
 		//#############
 		if(Auto == 1) { // forward
 			if (state == 0) {
-				if (alignRobot(280,360,60)) {
-					state = 1;
+				if (time(0.75)) {
+					tankDrive(0.5575,0.55);
+				} else {
+					state = 3;
+					tankDrive(0,0);
 				}
 			}
 			if (state == 1) {
-				if (alignRobot(295,345,999)) {
-					state = 2;
-				}
-			}
-			if (state == 2) {
-				if (alignLoader(310,330,0.6)) {
-					state = 3; t = clock();
+				if (alignRobot(280,360,60)) {
+					state = 3;
 				}
 			}
 			if (state == 3) {
-				if (pdp->GetTotalCurrent() < 4.2) {
-					if (time(1.5)) {
-						SmartDashboard::PutString("Auto State", "");
-						tankDrive(0.35, 0.38);
-					} else {
-						tankDrive(0, 0);
-						state = -1;
-						t = clock();
-					}
-				} else {
-					SmartDashboard::PutString("Auto State", "Hit Wall - Restarting");
-					tankDrive(0,0);
-					state = 4;
-					t = clock();
+				if (alignLoader(310,330,0.65)) {
+					state = 4; t = clock();
 				}
 			}
 			if (state == 4) {
-				if (time(3)) {
-					SmartDashboard::PutString("Auto State", "Hit Wall - Driving Backwards");
-					tankDrive(-0.45, -0.45);
+				if (time(1)) {
+					SmartDashboard::PutString("Auto State", "Forward Slowly");
+					tankDrive(0.4085, 0.4);
 				} else {
-					SmartDashboard::PutString("Auto State", "Restarting Auto");
-					tankDrive(0,0); state = 0;
+					tankDrive(0, 0);
+					eject->Set(eject->kForward);
+					SmartDashboard::PutString("Auto State", "Done");
 				}
 			}
 		}
-		//#################
 		if(Auto == 2) { // left
 			if (state == 0) {
-				if(time(3)){
+				if(time(0.97)){
 					tankDrive(0.5,0.5);
 				} else {
 					tankDrive(0,0);
@@ -410,13 +401,8 @@ public:
 			}
 			if (state == 1) {
 				if(alignRobot(280,360,60)) {
-					state = 2;
-					t = clock();
-				}
-			}
-			if (state == 3) {
-				if (alignRobot(295,345,999)) {
 					state = 3;
+					t = clock();
 				}
 			}
 			if (state == 3) {
@@ -425,75 +411,15 @@ public:
 				}
 			}
 			if (state == 4) {
-				if (pdp->GetTotalCurrent() < 4.2) {
-					if (time(1.5)) {
-						SmartDashboard::PutString("Auto State", "");
+					if (time(0.5)) {
+						SmartDashboard::PutString("Auto State", "Going Forward");
 						tankDrive(0.35, 0.38);
 					} else {
 						tankDrive(0, 0);
+						SmartDashboard::PutString("Auto State", "Done");
 						state = -1;
 						t = clock();
 					}
-				} else {
-					SmartDashboard::PutString("Auto State", "Hit Wall - Restarting");
-					tankDrive(0,0);
-					state = 5;
-					t = clock();
-				}
-			}
-			if (state == 5) {
-				if (time(3)) {
-					SmartDashboard::PutString("Auto State", "Hit Wall - Driving Backwards");
-					tankDrive(-0.45, -0.45);
-				} else {
-					SmartDashboard::PutString("Auto State", "Restarting Auto");
-					tankDrive(0,0); state = 1;
-				}
-			}
-		}
-		//#################
-		if(Auto == 3) { // right
-			if (state == 0) {
-				if(time(3)){
-					tankDrive(0.5,0.5);
-				} else {
-					tankDrive(0,0);
-					state = 1;
-					mult = -1;
-				}
-			}
-			if (state == 1) {
-				if(alignRobot(280,360,60)) {
-					state = 2;
-					t = clock();
-				}
-			}
-			if (state == 3) {
-				if (alignRobot(295,345,999)) {
-					state = 3;
-				}
-			}
-			if (state == 3) {
-				if (alignLoader(310,330,0.6)) {
-					state = 4; t = clock();
-				}
-			}
-			if (state == 4) {
-				if (pdp->GetTotalCurrent() < 4.2) {
-					if (time(1.5)) {
-						SmartDashboard::PutString("Auto State", "");
-						tankDrive(0.35, 0.38);
-					} else {
-						tankDrive(0, 0);
-						state = -1;
-						t = clock();
-					}
-				} else {
-					SmartDashboard::PutString("Auto State", "Hit Wall - Restarting");
-					tankDrive(0,0);
-					state = 5;
-					t = clock();
-				}
 			}
 			if (state == 5) {
 				if (time(3)) {
@@ -510,6 +436,7 @@ public:
 	void TeleopInit() {
 		setGear(fastGear);
 		gearToggle = 0;
+		gear_motor->Set(0);
 		c->SetClosedLoopControl(false);
 	}
 	/*
@@ -530,28 +457,26 @@ public:
 	 */
 	void TeleopPeriodic() {
 		getValues();
-		if(LB) tankDrive(-speedR,-speedR);
-		else tankDrive(-speedL, -speedR);
+		if(LB){tankDrive(-speedR,-speedR);}
+		else {tankDrive(-speedL, -speedR);}
 		changeGear(RB || Y);
-
 		if (Control == 2) { //Two controllers
-			if(SmartDashboard::GetBoolean("Auto IR sensors?", false)) {
-				moveGear(IR, IR2);
-			} else {
-				moveGear(xbox2->GetBumper(xbox2->kLeftHand), xbox2->GetBumper(xbox2->kRightHand));
+			moveGear(xbox2->GetBumper(xbox2->kLeftHand), xbox2->GetBumper(xbox2->kRightHand));
+			moveClimber(xbox2->GetAButton());
+
+			if(xbox2->GetXButton() && dist > 40) {
+				alignLoader(290,350,0.6);
+			}
+			else {
+				moveLoader(xbox2->GetTriggerAxis(xbox2->kLeftHand), xbox2->GetTriggerAxis(xbox2->kRightHand));
 			}
 
-			moveClimber(xbox2->GetAButton(), xbox2->GetBButton());
-
-			if(xbox2->GetXButton() && dist > 40)
-				alignLoader(290,350,0.6);
-			else
-				moveLoader(xbox2->GetTriggerAxis(xbox2->kLeftHand), xbox2->GetTriggerAxis(xbox2->kRightHand));
+			changeEject(xbox2->GetYButton());
 		}
 
 		if (Control == 1) { //One controller
-			moveGear(left || IR, right || IR2);
-			moveClimber(A,B);
+			moveGear(left, right);
+			moveClimber(A);
 			if (LT != 0 || RT != 0) moveLoader(LT, RT);
 			else if (X && dist > 40) {
 				alignLoader(280,360,0.6);
@@ -562,16 +487,14 @@ public:
 	}
 
 	void TestInit() {
-		c->SetClosedLoopControl(true); // unsure if test init works?
+		c->SetClosedLoopControl(true);
 		tankDrive(0, 0);
 		climber->Set(0);
 		loader->Set(0);
+		gear_motor->Set(0);
+		setGear(slowGear);
 	}
 	void TestPeriodic() {
-		//		c->SetClosedLoopControl(true);
-		//		tankDrive(0, 0);
-		//		climber->Set(0);
-		//		loader->Set(0);
 	}
 };
 START_ROBOT_CLASS(Robot)
